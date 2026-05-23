@@ -1,0 +1,581 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Stammbaum Familie Weinmann</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --cream:#faf7f2;--bark:#2c1a0e;--bark2:#5c3d20;--bark3:#8b6239;
+  --leaf:#3d6b4f;--leaf2:#5a9970;--gold:#c9a84c;--gold2:#f0d080;
+  --card:#fff;--shadow:rgba(44,26,14,0.13);
+  --text:#2c1a0e;--muted:#7a6050;--border:#e8ddd0;
+}
+body{font-family:'DM Sans',sans-serif;background:var(--cream);color:var(--text);height:100vh;overflow:hidden;user-select:none}
+
+#topbar{position:fixed;top:0;left:0;right:0;height:52px;background:var(--bark);z-index:100;display:flex;align-items:center;padding:0 20px;gap:16px;box-shadow:0 2px 12px rgba(0,0,0,.25)}
+#topbar h1{font-family:'Playfair Display',serif;color:var(--gold2);font-size:20px;font-weight:600;letter-spacing:.5px;flex:1}
+#topbar .btn{background:none;border:1px solid var(--gold);color:var(--gold2);border-radius:6px;padding:6px 14px;font-size:13px;cursor:pointer;font-family:'DM Sans',sans-serif;transition:all .2s}
+#topbar .btn:hover{background:var(--gold);color:var(--bark)}
+#topbar .btn.primary{background:var(--gold);color:var(--bark);border-color:var(--gold)}
+#topbar .btn.primary:hover{background:var(--gold2)}
+
+#canvas-wrap{position:fixed;top:52px;left:0;right:0;bottom:0;overflow:hidden;cursor:grab}
+#canvas-wrap.dragging{cursor:grabbing}
+#canvas{position:absolute;transform-origin:0 0}
+#connections{position:absolute;top:0;left:0;pointer-events:none;overflow:visible}
+
+.person-node{position:absolute;transform:translate(-50%,-50%);cursor:pointer}
+.card{background:var(--card);border-radius:14px;border:1.5px solid var(--border);box-shadow:0 4px 18px var(--shadow);padding:14px 16px 12px;width:160px;text-align:center;transition:box-shadow .2s, transform .15s}
+.person-node:hover .card{box-shadow:0 8px 32px var(--shadow),0 0 0 2px var(--gold);transform:scale(1.04)}
+.card .photo{width:60px;height:60px;border-radius:50%;object-fit:cover;border:2.5px solid var(--gold);margin:0 auto 8px;display:block;background:var(--border)}
+.card .photo-placeholder{width:60px;height:60px;border-radius:50%;background:linear-gradient(135deg,var(--bark3),var(--bark2));border:2.5px solid var(--gold);margin:0 auto 8px;display:flex;align-items:center;justify-content:center;color:var(--gold2);font-size:22px;font-family:'Playfair Display',serif;font-weight:600}
+.card .name{font-family:'Playfair Display',serif;font-size:13.5px;font-weight:600;color:var(--text);line-height:1.3}
+.card .year{font-size:11px;color:var(--muted);margin-top:2px}
+.card .gen-badge{display:inline-block;font-size:10px;padding:1px 7px;border-radius:10px;margin-top:5px;font-weight:500}
+.gen-0{background:#f5ede0;color:var(--bark2)}
+.gen-1{background:#e8f2ec;color:var(--leaf)}
+.gen-2{background:#fef8e7;color:#8a6b00}
+.gen-3{background:#f0eef8;color:#5a4a8a}
+.gen-4{background:#fdecea;color:#a33}
+
+.partner-line{stroke:var(--gold);stroke-width:2;stroke-dasharray:5 3;fill:none}
+.child-line{stroke:var(--bark3);stroke-width:1.8;fill:none}
+.heart-lbl{fill:var(--gold);font-size:14px}
+
+#detail-panel{position:fixed;right:0;top:52px;bottom:0;width:340px;background:var(--card);border-left:1.5px solid var(--border);transform:translateX(100%);transition:transform .35s cubic-bezier(.4,0,.2,1);z-index:50;overflow-y:auto;box-shadow:-4px 0 24px rgba(0,0,0,.1)}
+#detail-panel.open{transform:translateX(0)}
+.panel-header{background:var(--bark);padding:20px;position:relative}
+.panel-header .close-btn{position:absolute;top:14px;right:14px;background:none;border:none;color:var(--gold2);font-size:22px;cursor:pointer}
+.panel-photo{width:80px;height:80px;border-radius:50%;object-fit:cover;border:3px solid var(--gold);margin:0 auto 12px;display:block;background:var(--bark3)}
+.panel-photo-placeholder{width:80px;height:80px;border-radius:50%;background:linear-gradient(135deg,var(--bark3),var(--bark2));border:3px solid var(--gold);margin:0 auto 12px;display:flex;align-items:center;justify-content:center;color:var(--gold2);font-size:32px;font-family:'Playfair Display',serif;font-weight:600}
+.panel-name{font-family:'Playfair Display',serif;font-size:20px;font-weight:700;color:var(--gold2);text-align:center}
+.panel-body{padding:20px}
+.info-row{display:flex;align-items:flex-start;gap:10px;margin-bottom:12px;font-size:13.5px}
+.info-icon{font-size:16px;flex-shrink:0;margin-top:1px}
+.info-label{font-size:11px;color:var(--muted);font-weight:500;margin-bottom:2px}
+.info-val{color:var(--text)}
+.info-val a{color:var(--leaf);text-decoration:none}
+.info-val a:hover{text-decoration:underline}
+.notes-box{background:#faf7f2;border-radius:8px;border:1px solid var(--border);padding:10px 12px;font-size:13px;color:var(--text);line-height:1.6;white-space:pre-wrap}
+.panel-actions{display:flex;gap:8px;margin-top:16px}
+.panel-actions button{flex:1;padding:8px;font-size:13px;border-radius:8px;cursor:pointer;font-family:'DM Sans',sans-serif}
+
+#modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:200;display:none;align-items:center;justify-content:center}
+#modal-bg.open{display:flex}
+#modal{background:var(--card);border-radius:16px;width:480px;max-width:95vw;max-height:88vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.3)}
+.modal-header{background:var(--bark);padding:20px 24px;border-radius:16px 16px 0 0;display:flex;align-items:center;justify-content:space-between}
+.modal-header h2{font-family:'Playfair Display',serif;color:var(--gold2);font-size:18px}
+.modal-header .close-btn{background:none;border:none;color:var(--gold2);font-size:22px;cursor:pointer}
+.modal-body{padding:24px}
+.field-group{margin-bottom:16px}
+.field-group label{display:block;font-size:12px;font-weight:500;color:var(--muted);margin-bottom:5px;text-transform:uppercase;letter-spacing:.5px}
+.field-group input,.field-group select,.field-group textarea{width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;font-family:'DM Sans',sans-serif;color:var(--text);background:var(--cream);outline:none;transition:border .2s}
+.field-group input:focus,.field-group select:focus,.field-group textarea:focus{border-color:var(--gold)}
+.field-group textarea{resize:vertical;min-height:70px}
+.field-row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.modal-footer{padding:16px 24px;border-top:1px solid var(--border);display:flex;gap:10px;justify-content:flex-end}
+.modal-footer button{padding:9px 20px;border-radius:8px;font-size:14px;cursor:pointer;font-family:'DM Sans',sans-serif}
+.cancel-btn{background:none;border:1.5px solid var(--border);color:var(--muted)}
+.cancel-btn:hover{border-color:var(--bark3)}
+.save-btn{background:var(--bark);color:var(--gold2);border:none;font-weight:500}
+.save-btn:hover{background:var(--bark2)}
+
+#zoom-ctrl{position:fixed;bottom:20px;right:20px;display:flex;flex-direction:column;gap:6px;z-index:100}
+#zoom-ctrl button{width:36px;height:36px;border-radius:8px;border:1px solid var(--border);background:var(--card);color:var(--text);font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 8px var(--shadow)}
+#zoom-ctrl button:hover{background:var(--bark);color:var(--gold2)}
+
+#empty-msg{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);text-align:center;pointer-events:none;opacity:.6}
+#empty-msg h2{font-family:'Playfair Display',serif;font-size:28px;color:var(--bark2);margin-bottom:8px}
+#empty-msg p{color:var(--muted);font-size:14px}
+
+#save-hint{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--bark);color:var(--gold2);padding:8px 18px;border-radius:20px;font-size:13px;opacity:0;transition:opacity .3s;pointer-events:none;z-index:200}
+#save-hint.show{opacity:1}
+</style>
+</head>
+<body>
+
+<div id="topbar">
+  <h1>🌳 Familie Weinmann</h1>
+  <button class="btn primary" onclick="openAddModal()">+ Person hinzufügen</button>
+  <button class="btn" onclick="resetView()">↺ Zentrieren</button>
+  <button class="btn" onclick="exportData()" title="Daten als JSON exportieren">⬇ Export</button>
+  <button class="btn" onclick="document.getElementById('import-file').click()" title="Daten importieren">⬆ Import</button>
+  <input type="file" id="import-file" accept=".json" style="display:none" onchange="importData(event)">
+</div>
+
+<div id="canvas-wrap">
+  <div id="canvas">
+    <svg id="connections" width="1" height="1"></svg>
+  </div>
+</div>
+
+<div id="empty-msg">
+  <h2>Willkommen!</h2>
+  <p>Klicke auf „+ Person hinzufügen" um den Stammbaum zu starten.</p>
+</div>
+
+<!-- Detail Panel -->
+<div id="detail-panel">
+  <div class="panel-header">
+    <button class="close-btn" onclick="closePanel()">×</button>
+    <div id="panel-photo-wrap"></div>
+    <div class="panel-name" id="panel-name"></div>
+  </div>
+  <div class="panel-body" id="panel-body"></div>
+</div>
+
+<!-- Add/Edit Modal -->
+<div id="modal-bg">
+  <div id="modal">
+    <div class="modal-header">
+      <h2 id="modal-title">Person hinzufügen</h2>
+      <button class="close-btn" onclick="closeModal()">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="field-row">
+        <div class="field-group"><label>Vorname *</label><input id="f-first" type="text" placeholder="z.B. Hans"></div>
+        <div class="field-group"><label>Nachname</label><input id="f-last" type="text" placeholder="Weinmann"></div>
+      </div>
+      <div class="field-row">
+        <div class="field-group"><label>Geburtsdatum</label><input id="f-birth" type="date"></div>
+        <div class="field-group"><label>Gestorben am</label><input id="f-death" type="date"></div>
+      </div>
+      <div class="field-group"><label>Foto-URL</label><input id="f-photo" type="url" placeholder="https://…"></div>
+      <div class="field-row">
+        <div class="field-group"><label>E-Mail</label><input id="f-email" type="email" placeholder="name@email.de"></div>
+        <div class="field-group"><label>Handynummer</label><input id="f-phone" type="tel" placeholder="+49 …"></div>
+      </div>
+      <div class="field-group"><label>LinkedIn-URL</label><input id="f-linkedin" type="url" placeholder="https://linkedin.com/in/…"></div>
+      <div class="field-row">
+        <div class="field-group"><label>Elternteil 1</label><select id="f-parent1"><option value="">— keines —</option></select></div>
+        <div class="field-group"><label>Elternteil 2</label><select id="f-parent2"><option value="">— keines —</option></select></div>
+      </div>
+      <div class="field-group"><label>Partner/Partnerin</label><select id="f-partner"><option value="">— keines —</option></select></div>
+      <div class="field-group"><label>Notizen</label><textarea id="f-notes" placeholder="Beruf, Wohnort, besondere Erinnerungen…"></textarea></div>
+    </div>
+    <div class="modal-footer">
+      <button class="cancel-btn" onclick="closeModal()">Abbrechen</button>
+      <button class="save-btn" onclick="savePerson()">Speichern</button>
+    </div>
+  </div>
+</div>
+
+<div id="zoom-ctrl">
+  <button onclick="zoom(1.2)" title="Vergrößern">+</button>
+  <button onclick="zoom(0.8)" title="Verkleinern">−</button>
+</div>
+
+<div id="save-hint">💾 Gespeichert</div>
+
+<script>
+// ─── State ───────────────────────────────────────────────────
+let people = {};
+let editingId = null;
+let scale = 1, panX = 60, panY = 80;
+let dragging = false, lastX, lastY;
+
+const canvas = document.getElementById('canvas');
+const wrap = document.getElementById('canvas-wrap');
+const svg = document.getElementById('connections');
+
+// ─── LocalStorage persistence ────────────────────────────────
+function loadData() {
+  try {
+    const raw = localStorage.getItem('weinmann_tree');
+    if (raw) people = JSON.parse(raw);
+  } catch(e) { people = {}; }
+}
+
+function saveData() {
+  try {
+    localStorage.setItem('weinmann_tree', JSON.stringify(people));
+    const hint = document.getElementById('save-hint');
+    hint.classList.add('show');
+    setTimeout(() => hint.classList.remove('show'), 1800);
+  } catch(e) { alert('Speichern fehlgeschlagen: ' + e.message); }
+}
+
+function exportData() {
+  const blob = new Blob([JSON.stringify(people, null, 2)], {type:'application/json'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'stammbaum_weinmann.json';
+  a.click();
+}
+
+function importData(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = evt => {
+    try {
+      people = JSON.parse(evt.target.result);
+      saveData();
+      render();
+      resetView();
+    } catch(err) { alert('Ungültige JSON-Datei'); }
+  };
+  reader.readAsText(file);
+  e.target.value = '';
+}
+
+// ─── Layout ───────────────────────────────────────────────────
+function layoutTree() {
+  const ids = Object.keys(people);
+  if (!ids.length) return;
+
+  const gen = {};
+  function calcGen(id, visited = new Set()) {
+    if (gen[id] !== undefined) return gen[id];
+    if (visited.has(id)) return 0;
+    visited.add(id);
+    const p = people[id];
+    if (!p.parents || !p.parents.length) { gen[id] = 0; return 0; }
+    const pg = p.parents.map(pid => people[pid] ? calcGen(pid, new Set(visited)) : 0);
+    gen[id] = Math.max(...pg) + 1;
+    return gen[id];
+  }
+  ids.forEach(id => calcGen(id));
+
+  const byGen = {};
+  ids.forEach(id => {
+    const g = gen[id] || 0;
+    if (!byGen[g]) byGen[g] = [];
+    byGen[g].push(id);
+  });
+
+  const HSPACE = 200, VSPACE = 220;
+  Object.keys(byGen).forEach(g => {
+    const row = byGen[g];
+    row.forEach((id, i) => {
+      if (people[id].x === undefined) {
+        people[id].x = (i - (row.length - 1) / 2) * HSPACE;
+        people[id].y = parseInt(g) * VSPACE;
+      }
+    });
+  });
+
+  ids.forEach(id => {
+    if (people[id].x === undefined) { people[id].x = 0; people[id].y = 0; }
+  });
+}
+
+// ─── Render ───────────────────────────────────────────────────
+function render() {
+  const ids = Object.keys(people);
+  document.querySelectorAll('.person-node').forEach(n => n.remove());
+  svg.innerHTML = '';
+
+  const emptyMsg = document.getElementById('empty-msg');
+  emptyMsg.style.display = ids.length ? 'none' : 'block';
+  if (!ids.length) return;
+
+  layoutTree();
+
+  let minX=Infinity, minY=Infinity, maxX=-Infinity, maxY=-Infinity;
+  ids.forEach(id => {
+    minX = Math.min(minX, people[id].x); minY = Math.min(minY, people[id].y);
+    maxX = Math.max(maxX, people[id].x); maxY = Math.max(maxY, people[id].y);
+  });
+  const PAD = 200;
+  const W = (maxX - minX) + PAD * 2 + 160;
+  const H = (maxY - minY) + PAD * 2 + 160;
+  svg.setAttribute('width', W); svg.setAttribute('height', H);
+  svg.style.width = W + 'px'; svg.style.height = H + 'px';
+  canvas.style.width = W + 'px'; canvas.style.height = H + 'px';
+
+  const OX = -minX + PAD + 80, OY = -minY + PAD + 80;
+  const drawn = new Set();
+
+  ids.forEach(id => {
+    const p = people[id];
+    const cx = p.x + OX, cy = p.y + OY;
+
+    // Partner line
+    if (p.partner && people[p.partner]) {
+      const key = [id, p.partner].sort().join('-');
+      if (!drawn.has(key)) {
+        drawn.add(key);
+        const q = people[p.partner];
+        const qx = q.x + OX, qy = q.y + OY;
+        const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+        line.setAttribute('x1', cx); line.setAttribute('y1', cy);
+        line.setAttribute('x2', qx); line.setAttribute('y2', qy);
+        line.setAttribute('class', 'partner-line');
+        svg.appendChild(line);
+        const heart = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+        heart.setAttribute('x', (cx + qx) / 2); heart.setAttribute('y', (cy + qy) / 2 + 5);
+        heart.setAttribute('text-anchor', 'middle'); heart.setAttribute('class', 'heart-lbl');
+        heart.textContent = '♥';
+        svg.appendChild(heart);
+      }
+    }
+
+    // Parent lines
+    if (p.parents) {
+      p.parents.forEach(pid => {
+        if (!people[pid]) return;
+        const par = people[pid];
+        const px2 = par.x + OX, py2 = par.y + OY;
+        const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+        const midY = (cy + py2) / 2;
+        path.setAttribute('d', `M${cx},${cy} C${cx},${midY} ${px2},${midY} ${px2},${py2}`);
+        path.setAttribute('class', 'child-line'); path.setAttribute('fill', 'none');
+        svg.appendChild(path);
+      });
+    }
+  });
+
+  // Person nodes
+  ids.forEach(id => {
+    const p = people[id];
+    const node = document.createElement('div');
+    node.className = 'person-node';
+    node.style.left = (p.x + OX) + 'px';
+    node.style.top = (p.y + OY) + 'px';
+
+    const g = (p.generation || 0) % 5;
+    const labels = ['Großeltern', 'Eltern', 'Unsere Generation', 'Kinder', 'Enkel'];
+    const initials = ((p.first || '')[0] || (p.last || '')[0] || '?').toUpperCase();
+    const yearStr = p.birth ? new Date(p.birth).getFullYear() : '';
+    const deathStr = p.death ? ' † ' + new Date(p.death).getFullYear() : '';
+
+    node.innerHTML = `<div class="card">
+      ${p.photo
+        ? `<img class="photo" src="${escHtml(p.photo)}" alt="${escHtml(p.first)}" onerror="this.style.display='none'">`
+        : `<div class="photo-placeholder">${escHtml(initials)}</div>`}
+      <div class="name">${escHtml(p.first || '')} ${escHtml(p.last || '')}</div>
+      <div class="year">${yearStr}${deathStr}</div>
+      <span class="gen-badge gen-${g}">${labels[g] || ''}</span>
+    </div>`;
+
+    node.addEventListener('click', e => { e.stopPropagation(); openPanel(id); });
+    canvas.appendChild(node);
+  });
+}
+
+function escHtml(s) {
+  return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ─── Pan & Zoom ───────────────────────────────────────────────
+function applyTransform() {
+  canvas.style.transform = `translate(${panX}px,${panY}px) scale(${scale})`;
+}
+
+wrap.addEventListener('mousedown', e => {
+  if (e.target.closest('.person-node')) return;
+  dragging = true; lastX = e.clientX; lastY = e.clientY;
+  wrap.classList.add('dragging');
+});
+window.addEventListener('mousemove', e => {
+  if (!dragging) return;
+  panX += e.clientX - lastX; panY += e.clientY - lastY;
+  lastX = e.clientX; lastY = e.clientY;
+  applyTransform();
+});
+window.addEventListener('mouseup', () => { dragging = false; wrap.classList.remove('dragging'); });
+
+wrap.addEventListener('wheel', e => {
+  e.preventDefault();
+  const f = e.deltaY < 0 ? 1.1 : 0.9;
+  const rect = wrap.getBoundingClientRect();
+  panX = (e.clientX - rect.left) - f * ((e.clientX - rect.left) - panX);
+  panY = (e.clientY - rect.top) - f * ((e.clientY - rect.top) - panY);
+  scale = Math.max(0.15, Math.min(4, scale * f));
+  applyTransform();
+}, { passive: false });
+
+function zoom(f) {
+  const cx = wrap.clientWidth / 2, cy = wrap.clientHeight / 2;
+  panX = cx - f * (cx - panX); panY = cy - f * (cy - panY);
+  scale = Math.max(0.15, Math.min(4, scale * f));
+  applyTransform();
+}
+function resetView() { scale = 1; panX = 60; panY = 80; applyTransform(); }
+
+// Touch
+let lastTouchDist = null;
+wrap.addEventListener('touchstart', e => {
+  if (e.touches.length === 1) { lastX = e.touches[0].clientX; lastY = e.touches[0].clientY; dragging = true; }
+  else if (e.touches.length === 2) {
+    lastTouchDist = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
+    dragging = false;
+  }
+}, { passive: true });
+wrap.addEventListener('touchmove', e => {
+  if (e.touches.length === 1 && dragging) {
+    panX += e.touches[0].clientX - lastX; panY += e.touches[0].clientY - lastY;
+    lastX = e.touches[0].clientX; lastY = e.touches[0].clientY;
+    applyTransform();
+  } else if (e.touches.length === 2) {
+    const dist = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
+    if (lastTouchDist) { scale = Math.max(0.15, Math.min(4, scale * dist / lastTouchDist)); applyTransform(); }
+    lastTouchDist = dist;
+  }
+}, { passive: true });
+wrap.addEventListener('touchend', () => { dragging = false; lastTouchDist = null; });
+
+// ─── Detail Panel ─────────────────────────────────────────────
+function openPanel(id) {
+  const p = people[id];
+  const initials = ((p.first || '')[0] || (p.last || '')[0] || '?').toUpperCase();
+  document.getElementById('panel-name').textContent = (p.first || '') + ' ' + (p.last || '');
+
+  const pw = document.getElementById('panel-photo-wrap');
+  pw.innerHTML = p.photo
+    ? `<img class="panel-photo" src="${escHtml(p.photo)}" alt="${escHtml(p.first)}">`
+    : `<div class="panel-photo-placeholder">${escHtml(initials)}</div>`;
+
+  let html = '';
+  if (p.birth) {
+    const bd = new Date(p.birth);
+    const ageMs = p.death ? new Date(p.death) - bd : Date.now() - bd;
+    const age = Math.floor(ageMs / (365.25 * 86400000));
+    html += row('🎂', 'Geburtstag', bd.toLocaleDateString('de-DE', {day:'2-digit',month:'long',year:'numeric'}) + ` (${age} J.)`);
+  }
+  if (p.death) html += row('🕊️', 'Gestorben', new Date(p.death).toLocaleDateString('de-DE', {day:'2-digit',month:'long',year:'numeric'}));
+  if (p.email) html += row('✉️', 'E-Mail', `<a href="mailto:${escHtml(p.email)}">${escHtml(p.email)}</a>`);
+  if (p.phone) html += row('📱', 'Handynummer', `<a href="tel:${escHtml(p.phone)}">${escHtml(p.phone)}</a>`);
+  if (p.linkedin) html += row('💼', 'LinkedIn', `<a href="${escHtml(p.linkedin)}" target="_blank" rel="noopener">Profil öffnen ↗</a>`);
+
+  if (p.partner && people[p.partner]) {
+    const pt = people[p.partner];
+    html += row('♥', 'Partner/in', `<span style="cursor:pointer;color:var(--leaf)" onclick="openPanel('${p.partner}')">${escHtml(pt.first)} ${escHtml(pt.last||'')}</span>`);
+  }
+  const parentList = (p.parents||[]).filter(pid=>people[pid]);
+  if (parentList.length) {
+    const names = parentList.map(pid => `<span style="cursor:pointer;color:var(--leaf)" onclick="openPanel('${pid}')">${escHtml(people[pid].first)} ${escHtml(people[pid].last||'')}</span>`).join(', ');
+    html += row('👪', 'Eltern', names);
+  }
+  const children = Object.values(people).filter(q => q.parents && q.parents.includes(id));
+  if (children.length) {
+    const names = children.map(c => `<span style="cursor:pointer;color:var(--leaf)" onclick="openPanel('${c.id}')">${escHtml(c.first)} ${escHtml(c.last||'')}</span>`).join(', ');
+    html += row('👶', 'Kinder', names);
+  }
+  if (p.notes) html += `<div style="margin-top:4px"><div class="info-label" style="font-size:11px;color:var(--muted);margin-bottom:6px">📝 Notizen</div><div class="notes-box">${escHtml(p.notes)}</div></div>`;
+
+  html += `<div class="panel-actions">
+    <button style="background:var(--leaf);color:#fff;border:none" onclick="openEditModal('${id}')">✏️ Bearbeiten</button>
+    <button style="background:none;border:1.5px solid #e0d0c0;color:var(--muted)" onclick="deletePerson('${id}')">🗑 Löschen</button>
+  </div>`;
+
+  document.getElementById('panel-body').innerHTML = html;
+  document.getElementById('detail-panel').classList.add('open');
+}
+
+function row(icon, label, val) {
+  return `<div class="info-row"><span class="info-icon">${icon}</span><div><div class="info-label">${label}</div><div class="info-val">${val}</div></div></div>`;
+}
+
+function closePanel() { document.getElementById('detail-panel').classList.remove('open'); }
+
+// ─── Modal ────────────────────────────────────────────────────
+function populateSelects(excludeId) {
+  const opts = Object.values(people).filter(p => p.id !== excludeId)
+    .map(p => `<option value="${p.id}">${escHtml(p.first)} ${escHtml(p.last||'')}</option>`).join('');
+  ['f-parent1','f-parent2','f-partner'].forEach(id => {
+    document.getElementById(id).innerHTML = '<option value="">— keines —</option>' + opts;
+  });
+}
+
+function openAddModal() {
+  editingId = null;
+  document.getElementById('modal-title').textContent = 'Person hinzufügen';
+  ['f-first','f-last','f-birth','f-death','f-photo','f-email','f-phone','f-linkedin','f-notes'].forEach(id => document.getElementById(id).value = '');
+  populateSelects(null);
+  document.getElementById('modal-bg').classList.add('open');
+}
+
+function openEditModal(id) {
+  editingId = id;
+  const p = people[id];
+  document.getElementById('modal-title').textContent = 'Person bearbeiten';
+  document.getElementById('f-first').value = p.first||'';
+  document.getElementById('f-last').value = p.last||'';
+  document.getElementById('f-birth').value = p.birth||'';
+  document.getElementById('f-death').value = p.death||'';
+  document.getElementById('f-photo').value = p.photo||'';
+  document.getElementById('f-email').value = p.email||'';
+  document.getElementById('f-phone').value = p.phone||'';
+  document.getElementById('f-linkedin').value = p.linkedin||'';
+  document.getElementById('f-notes').value = p.notes||'';
+  populateSelects(id);
+  document.getElementById('f-parent1').value = (p.parents||[])[0]||'';
+  document.getElementById('f-parent2').value = (p.parents||[])[1]||'';
+  document.getElementById('f-partner').value = p.partner||'';
+  document.getElementById('modal-bg').classList.add('open');
+  closePanel();
+}
+
+function closeModal() { document.getElementById('modal-bg').classList.remove('open'); }
+
+function savePerson() {
+  const first = document.getElementById('f-first').value.trim();
+  if (!first) { alert('Vorname ist Pflichtfeld'); return; }
+
+  const id = editingId || 'p_' + Date.now() + '_' + Math.random().toString(36).slice(2,6);
+  const parents = [document.getElementById('f-parent1').value, document.getElementById('f-parent2').value].filter(Boolean);
+  const partnerVal = document.getElementById('f-partner').value;
+
+  let gen = 0;
+  parents.forEach(pid => { if (people[pid]) gen = Math.max(gen, (people[pid].generation||0) + 1); });
+
+  let x = 0, y = gen * 220;
+  if (editingId && people[editingId]) { x = people[editingId].x; y = people[editingId].y; }
+  else if (parents.length) {
+    x = parents.map(pid => people[pid]?.x||0).reduce((a,b)=>a+b,0) / parents.length;
+    y = Math.max(...parents.map(pid => people[pid]?.y||0)) + 220;
+    const used = Object.values(people).map(p => p.x);
+    while (used.some(ox => Math.abs(ox - x) < 170)) x += 185;
+  } else {
+    const xs = Object.values(people).map(p => p.x);
+    x = xs.length ? Math.max(...xs) + 200 : 0;
+  }
+
+  people[id] = {
+    id, first, generation: gen,
+    last: document.getElementById('f-last').value.trim(),
+    birth: document.getElementById('f-birth').value,
+    death: document.getElementById('f-death').value,
+    photo: document.getElementById('f-photo').value.trim(),
+    email: document.getElementById('f-email').value.trim(),
+    phone: document.getElementById('f-phone').value.trim(),
+    linkedin: document.getElementById('f-linkedin').value.trim(),
+    notes: document.getElementById('f-notes').value.trim(),
+    parents, partner: partnerVal,
+    x: editingId ? people[editingId]?.x ?? x : x,
+    y: editingId ? people[editingId]?.y ?? y : y,
+  };
+
+  if (partnerVal && people[partnerVal]) {
+    people[partnerVal].partner = id;
+    if (!editingId) { people[partnerVal].x = people[id].x + 185; people[partnerVal].y = people[id].y; }
+  }
+
+  saveData();
+  closeModal();
+  render();
+}
+
+function deletePerson(id) {
+  if (!confirm('Person wirklich löschen?')) return;
+  if (people[id].partner && people[people[id].partner]) delete people[people[id].partner].partner;
+  Object.values(people).forEach(p => { if (p.parents) p.parents = p.parents.filter(pid => pid !== id); });
+  delete people[id];
+  saveData();
+  closePanel();
+  render();
+}
+
+// ─── Init ─────────────────────────────────────────────────────
+loadData();
+render();
+resetView();
+applyTransform();
+</script>
+</body>
+</html>
